@@ -1,0 +1,5 @@
+{
+  "name": "WhatsApp Gateway Dashboard",
+  "description": "A web-based interface to manage your WhatsApp Gateway, an alternative to the WhatsApp Business Cloud API. This dashboard allows you to view and send messages, manage device pairing via QR or code, configure webhooks, and access API documentation.",
+  "requestFramePermissions": []
+}
