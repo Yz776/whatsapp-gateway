@@ -3,8 +3,6 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { io, Socket } from 'socket.io-client';
 import { ConnectionStatus, Contact, Message, WebhookEvent } from '../types';
 
-const SOCKET_URL = '/';
-
 interface DashboardStats {
   messageSent: number;
   messageReceived: number;
@@ -29,6 +27,7 @@ interface AppState {
   isWebhookEnabled: boolean;
   dashboardStats: DashboardStats;
   connectedPhone: string | null;
+  backendUrl: string;
 }
 
 interface AppContextType extends AppState {
@@ -38,6 +37,7 @@ interface AppContextType extends AppState {
   requestNewCode: (phoneNumber: string) => void;
   logout: () => void;
   clearPairingError: () => void;
+  setBackendUrl: (url: string) => void;
 }
 
 // Fix: Define event maps for socket.io to strongly type the socket client and resolve type errors on '.on' methods.
@@ -64,6 +64,7 @@ interface ClientToServerEvents {
   requestQR: () => void;
   requestCode: (data: { phoneNumber: string }) => void;
   logout: () => void;
+  saveWebhook: (data: { url: string; enabled: boolean }) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -100,6 +101,7 @@ const initialState: AppState = {
   isWebhookEnabled: false,
   dashboardStats: initialStats,
   connectedPhone: null,
+  backendUrl: localStorage.getItem('backendUrl') || '/',
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -108,8 +110,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
 
   useEffect(() => {
+    console.log(`Connecting to backend: ${state.backendUrl}`);
     // Fix: Remove 'transports' option causing a type error and explicitly type the socket instance.
-    const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(SOCKET_URL, {
+    const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(state.backendUrl, {
         reconnectionAttempts: 5,
         reconnectionDelay: 5000,
     });
@@ -208,7 +211,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => {
         socket.disconnect();
     };
-  }, []);
+  }, [state.backendUrl]);
 
   const sendMessage = useCallback((to: string, text: string) => {
       const tempId = `temp_${Date.now()}`;
@@ -239,10 +242,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       socketRef.current?.emit('sendMessage', { to, text, tempId });
   }, []);
 
-  const saveWebhookConfig = useCallback(async (url: string, enabled: boolean) => {
-      // In a real app, this would be a POST fetch request to an API.
-      // fetch('/api/webhook', { method: 'POST', body: JSON.stringify({ url, enabled }), ... });
-      console.log('Saving webhook config:', { url, enabled });
+  const saveWebhookConfig = useCallback((url: string, enabled: boolean) => {
+      socketRef.current?.emit('saveWebhook', { url, enabled });
       setState(s => ({...s, webhookUrl: url, isWebhookEnabled: enabled}));
       alert('Webhook configuration saved!');
   }, []);
@@ -262,10 +263,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const clearPairingError = useCallback(() => {
     setState(s => ({...s, pairingError: null, connectionStatus: 'DISCONNECTED' }));
   }, []);
+  
+  const setBackendUrl = useCallback((url: string) => {
+    const newUrl = url.trim() || '/';
+    localStorage.setItem('backendUrl', newUrl);
+    setState(s => ({ ...s, backendUrl: newUrl, connectionStatus: 'DISCONNECTED' })); // Reset status on URL change
+  }, []);
 
   const logout = useCallback(() => socketRef.current?.emit('logout'), []);
 
-  const value = { ...state, sendMessage, saveWebhookConfig, requestNewQr, requestNewCode, logout, clearPairingError };
+  const value = { ...state, sendMessage, saveWebhookConfig, requestNewQr, requestNewCode, logout, clearPairingError, setBackendUrl };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

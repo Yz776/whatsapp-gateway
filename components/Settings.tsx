@@ -13,25 +13,34 @@ const Settings: React.FC = () => {
     webhookUrl: initialWebhookUrl,
     isWebhookEnabled: initialIsWebhookEnabled,
     webhookEvents,
+    backendUrl: initialBackendUrl,
     saveWebhookConfig,
     requestNewQr,
     requestNewCode,
     logout,
     clearPairingError,
+    setBackendUrl,
   } = useAppContext();
 
   const [pairingMode, setPairingMode] = useState<PairingMode>('qr');
   const [webhookUrl, setWebhookUrl] = useState(initialWebhookUrl);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isWebhookEnabled, setIsWebhookEnabled] = useState(initialIsWebhookEnabled);
+  const [localBackendUrl, setLocalBackendUrl] = useState(initialBackendUrl);
 
   useEffect(() => {
     setWebhookUrl(initialWebhookUrl);
     setIsWebhookEnabled(initialIsWebhookEnabled);
-  }, [initialWebhookUrl, initialIsWebhookEnabled]);
+    setLocalBackendUrl(initialBackendUrl);
+  }, [initialWebhookUrl, initialIsWebhookEnabled, initialBackendUrl]);
 
   const handleSaveWebhook = () => {
       saveWebhookConfig(webhookUrl, isWebhookEnabled);
+  };
+  
+  const handleSaveBackendUrl = () => {
+    setBackendUrl(localBackendUrl);
+    alert('Backend URL updated. Attempting to reconnect...');
   };
 
   const handleRequestCode = () => {
@@ -54,6 +63,28 @@ const Settings: React.FC = () => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Left Column */}
       <div className="space-y-8">
+        <Card title="Backend Server Configuration">
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="backend-url" className="block text-sm font-medium text-text-secondary mb-1">Server URL</label>
+              <input 
+                type="url" 
+                id="backend-url" 
+                value={localBackendUrl} 
+                onChange={(e) => setLocalBackendUrl(e.target.value)}
+                placeholder="e.g. https://your-backend.com"
+                className="w-full bg-content px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary border border-border" 
+              />
+              <p className="text-xs text-text-secondary/70 mt-1">Default is '/', for backend on the same server.</p>
+            </div>
+            <div className="flex justify-end">
+              <button onClick={handleSaveBackendUrl} className="bg-primary hover:bg-secondary text-white font-bold py-2 px-4 rounded transition-colors">
+                Save & Reconnect
+              </button>
+            </div>
+          </div>
+        </Card>
+        
         <Card title="Device Connection">
           {connectionStatus === 'CONNECTED' && (
              <div className="text-center">
